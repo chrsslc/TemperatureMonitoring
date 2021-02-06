@@ -1,0 +1,176 @@
+//use sudo nano /var/log/apache2/error.log to see errors
+//this is how you comment
+
+$username="pi";
+$password="raspberry";//use your password
+//$database="DOGHOUSE";
+
+$mysqli_select_db=new mysqli("localhost","root","raspberry","DOGHOUSE") or die ("unable to make it happen Cap'n");
+
+//mysql_connect(localhost,$username,$password);
+//@mysql_select_db($database) or die ( "Unable to make it happen Cap'n");
+
+$sql = "SELECT CONCAT(DATE, ' ', TIME), VALUE_F FROM TEMP_DATA WHERE THERMOCOUPLE_ID = 1 AND DATE > DATE_ADD(now(), INTERVAL -2 DAY) ORDER BY CONCAT(DATE, ' ', TIME) DESC  LIMIT 1000";
+if (!$result = $mysqli_select_db->query($sql)) {
+	//o no the query failed
+	echo "Sorry, the website is experiencing problems.";
+
+	// again, do not doi this on a public site. 
+	echo "Error: Our query failed to execute and hereis why: \n";
+	echo "Query: " . $sql . "\n";
+	echo "Error: " . $mysqli->error . "\n";
+	echo "Error: " . $mysqli->error . "\n";
+	exit;
+}
+
+$dateTemp = array();
+$index = 0;
+while ($row = mysqli_fetch_array($result, MYSQL_NUM))
+{
+$dateTemp[$index]=$row;
+$index++;
+}
+
+//echo json_encode($dateTemp, JSON_NUMERIC_CHECK);
+
+
+
+
+$mysqli_select_db2=new mysqli("localhost","root","raspberry","DOGHOUSE") or die ("unable to make it happen cap'n");
+$sql2 = "SELECT CONCAT(DATE, ' ', TIME), VALUE_F FROM TEMP_DATA WHERE THERMOCOUPLE_ID = 2 AND DATE > DATE_ADD(now(), INTERVAL -2 DAY) ORDER BY CONCAT(DATE, ' ', TIME) DESC  LIMIT 1000";
+if (!$result = $mysqli_select_db2->query($sql2)) {
+		//o no the query failed
+		echo "Sorry, the website is experiencing problems.";
+
+		// again, do not doi this on a public site.
+		echo "Error: Our query failed to execute and hereis why: \n";
+		echo "Query: " . $sql2 . "\n";
+		echo "Error: " . $mysqli->error . "\n";
+		echo "Error: " . $mysqli->error . "\n";
+		exit;
+}
+
+$dateTemp2 = array();
+$index = 0;
+while ($row = mysqli_fetch_array($result, MYSQL_NUM))
+{
+$dateTemp2[$index]=$row;
+$index++;
+}
+
+
+mysqli_close();
+
+?>
+
+!DOCTYPE html>
+html>
+head>
+title>HighChart /title>
+link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.js"> /script>
+script src="https://code.highcharts.com/highcharts.js"> /script>
+script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.min.js"> /script>
+script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.13/moment-timezone-with-data-2012-2022.min.js"> /script>
+
+/head>
+body>
+
+script type="text/javascript">
+$(function () {
+
+$('#container').highcharts({
+chart: {
+type: 'line'
+},
+time: {
+timezone: 'America/New_York'
+},
+title: {
+text: 'Temperature vs Time'
+},
+xAxis: {
+		title: {
+			text: 'Time'
+			},
+		type: 'datetime',
+		tickInterval: 1000
+yAxis: {
+title: {
+text: 'Temperature'
+}
+},
+series: [{
+name: 'F',
+data: ?php echo json_encode($dateTemp, JSON_NUMERIC_CHECK);?
+}]
+});
+});
+
+$(function () {
+
+$('#container2').highcharts({
+chart: {
+type: 'line'
+},
+time: {
+timezone: 'America/New_York'
+},
+title: {
+text: 'Temperature vs Time'
+},
+xAxis: {
+				title: {
+						text: 'Time'
+						},
+				type: 'datetime',
+				tickInterval: 1000
+		},
+yAxis: {
+title: {
+text: 'Temperature'
+}
+},
+series: [{
+name: 'F',
+data: ?php echo json_encode($dateTemp2, JSON_NUMERIC_CHECK);?>
+}]
+});
+});
+
+
+/script>
+script src="charts/js/highcharts.js"> /script>
+script src="charts/js/modules/exporting.js"> /script>
+
+div class="container">
+		br/>
+		h2 class="text-center">Outside Sensor - Temp vs. Time /h2>
+		div class="row">
+				div class="col-md-10 col-md-offset-1">
+						div class="panel panel-default">
+								div class="panel-heading">Dashboard /div>
+								div class="panel-body">
+										div id="container"> /div>
+								/div>
+						/div>
+				/div>
+		/div>
+/div>
+div class="container">
+	br/>
+	h2 class="text-center">DogHouse Sensor - Temp vs. Time /h2>
+	div class="row">
+		div class="col-md-10 col-md-offset-1">
+			div class="panel panel-default">
+				div class="panel-heading">Dashboard /div>
+				div class="panel-body">
+					div id="container2"> /div>
+				/div>
+			/div>
+		/div>
+	/div>
+/div>
+
+/body>
+/html>

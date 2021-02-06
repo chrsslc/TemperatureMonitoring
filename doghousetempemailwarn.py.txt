@@ -1,0 +1,88 @@
+##------------------------------------------
+##--- based on code from Author: Pradeep Singh
+##--- Blog: https://iotbytes.wordpress.com/programmatically-send-e-mail-from-raspberry-pi-using-python-and-gmail/
+##--- Date: 21st Feb 2017
+##--- Version: 1.0
+##--- Python Ver: 2.7
+##------------------------------------------
+
+#!/usr/bin/env python
+import RPi.GPIO as GPIO
+import MySQLdb
+import time
+
+#readGPIO21. If you put the pi with the usb ports facaing left, its the bottom left one
+#if the gpioi reads a 0 v signal, send the email. if it reads a signal at all, dont send.
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(21, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+time.sleep(0.5)
+disabled = GPIO.input(21)
+
+emailSubject = "WARNING - Temp in Dog House"
+emailBody = ""
+warningFlag = 0
+DogHouseDB = MySQLdb.connect("localhost","root","raspberry","DOGHOUSE")
+curs=DogHouseDB.cursor(MySQLdb.cursors.DictCursor)
+
+#Find the warning settings for the temperature, high low
+curs.execute("Select * FROM WARNSETTINGS")
+rows = curs.fetchall()
+highWarn = 75
+lowWarn = 65
+for row in rows:
+	if row["EMAIL_ID"] == 2:
+		highWarn = row["HIGHALARM"]
+		lowWarn = row["LOWALARM"]
+
+curs.close()
+#End find Warning Settings
+
+#begin portion of code that gets values
+curs = DogHouseDB.cursor(MySQLdb.cursors.DictCursor)
+curs.execute("Select * FROM THERMOCOUPLE WHERE ID = 2")
+rows = curs.fetchall()
+
+for row in rows:
+	tempStore = open("/sys/bus/w1/devices/" + row["SERAILNUMBER"] + "/w1_slave")
+	data = tempStore.read()
+	tempData = data.split("\n")[1].split(" ")[9]
+	temperature = float(tempData[2:])/float(row["DIVISOR_CONVERTER"])
+	emailBody = emailBody + "%s %s %s, %s %s\n" % (row["DESCRIPTION"], temperature + float(row["OFFSET_C_VALUE"]), row["DEFAULT_UNITS"], (float(temperature)*9/5)+32,"F")
+	temperatureF = (float(temperature)*9/5)+32
+	if temperatureF > highWarn:
+		warningFlag = 1
+	if temperatureF < lowWarn:
+		warningFlag = 1
+	#End if		
+
+curs.close()
+
+if warningFlag == 1 and disabled == False:
+	curs = DogHouseDB.cursor()
+	curs.execute("Select TOADDRESSLIST, CCADDRESSLIST FROM EMAILSETTINGS WHERE NAME = 'DogHouseTempWarning'")
+
+	for reading in curs.fetchall():
+		ToList = reading[0]
+		CCList = reading[1]	
+
+	#import the class definition from "email_handler.py" file
+	from email_handler import Class_eMail
+
+	#set the email ID where you want to send the test email 
+	To_Email_ID = ToList
+
+	To_Email_ID_List = ToList.split(';')
+
+	# Send Plain Text Email 
+	for addr in To_Email_ID_List:
+		email = Class_eMail()
+		email.send_Text_Mail(addr, emailSubject, emailBody)
+		del email
+
+
+	# Send HTML Email
+	#email = Class_eMail()
+	#email.send_HTML_Mail(To_Email_ID, 'HTML Mail Subject', 'html>h1>This is sample HTML test email body/h1>/html>')
+	#del email
+	curs.close()
+DogHouseDB.close()
